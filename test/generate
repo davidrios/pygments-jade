@@ -1,0 +1,17 @@
+#!/bin/bash
+pygmentize="../pygenv/bin/pygmentize"
+
+cat <<EOF >test.html
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>$($pygmentize -S monokai -f html)
+		body {
+			color: #F8F8F2;
+			background-color: #272822;
+		}
+		</style>
+	</head>
+	<body>$($pygmentize -f html ./test.jade)</body>
+</html>
+EOF
