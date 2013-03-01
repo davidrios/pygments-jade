@@ -26,8 +26,9 @@ __all__ = ['HtmlLexer', 'XmlLexer', 'JavascriptLexer', 'JsonLexer', 'CssLexer',
            'PhpLexer', 'ActionScriptLexer', 'XsltLexer', 'ActionScript3Lexer',
            'MxmlLexer', 'HaxeLexer', 'HamlLexer', 'SassLexer', 'ScssLexer',
            'ObjectiveJLexer', 'CoffeeScriptLexer', 'LiveScriptLexer',
-           'DuelLexer', 'ScamlLexer', 'JadeLexer', 'XQueryLexer',
-           'DtdLexer', 'DartLexer', 'LassoLexer', 'QmlLexer', 'TypeScriptLexer']
+           'DuelLexer', 'ScamlLexer', 'ScamlJadeLexer', 'XQueryLexer',
+           'DtdLexer', 'DartLexer', 'LassoLexer', 'QmlLexer', 'TypeScriptLexer',
+           'JadeLexer']
 
 
 class JavascriptLexer(RegexLexer):
@@ -2149,7 +2150,7 @@ class ScamlLexer(ExtendedRegexLexer):
     }
 
 
-class JadeLexer(ExtendedRegexLexer):
+class ScamlJadeLexer(ExtendedRegexLexer):
     """
     For Jade markup.
     Jade is a variant of Scaml, see:
@@ -2158,10 +2159,10 @@ class JadeLexer(ExtendedRegexLexer):
     *New in Pygments 1.4.*
     """
 
-    name = 'Jade'
-    aliases = ['jade', 'JADE']
-    filenames = ['*.jade']
-    mimetypes = ['text/x-jade']
+    name = 'Scaml Jade'
+    aliases = ['sjade', 'SJADE']
+    filenames = ['*.sjade']
+    mimetypes = ['text/x-sjade']
 
     flags = re.IGNORECASE
     _dot = r'.'
@@ -3420,4 +3421,105 @@ class QmlLexer(RegexLexer):
             (r'"(\\\\|\\"|[^"])*"', String.Double),
             (r"'(\\\\|\\'|[^'])*'", String.Single),
         ]
+    }
+
+
+class JadeLexer(ExtendedRegexLexer):
+    """
+    For Jade template engine.
+    Jade is a high performance template engine heavily influenced by Haml and
+    implemented with JavaScript for node. See http://jade-lang.com.
+    """
+
+    name = 'Jade'
+    aliases = ['jade', 'JADE']
+    filenames = ['*.jade']
+    mimetypes = ['text/x-jade']
+
+    _dot = r'.'
+
+    tokens = {
+        'root': [
+            (r'(!!!|doctype)(\s*[a-zA-Z0-9-_]+)?', Comment),
+            (r'\s*\n', Text),
+            (r'\s*', _indentation),
+        ],
+
+        'css': [
+            (r'\.[\\w-]+', Name.Class, 'tag'),
+            (r'\#[\\w-]+', Name.Function, 'tag'),
+        ],
+
+        'eval-or-plain': [
+            (r'[&!]?==', Punctuation, 'plain'),
+            (r'([&!]?[=~])(' + _dot + r'*\n)',
+             bygroups(Punctuation, using(ScalaLexer)),  'root'),
+            (r'', Text, 'plain'),
+        ],
+
+        'content': [
+            (r'//-.*', _starts_block(Comment.Preproc, 'unbuffered-comment-block'),
+             '#pop'),
+            (r'//.*', _starts_block(String, 'buffered-comment-block'), '#pop'),
+            (r'(-@\s*)(import)?(' + _dot + r'*\n)',
+             bygroups(Punctuation, Keyword, using(ScalaLexer)),
+             '#pop'),
+            (r'(-)(' + _dot + r'*\n)',
+             bygroups(Punctuation, using(ScalaLexer)),
+             '#pop'),
+            (r':' + _dot + r'*\n', _starts_block(Name.Decorator, 'filter-block'),
+             '#pop'),
+            (r'[a-z0-9_:-]+', Name.Tag, 'tag'),
+            (r'\|', Text, 'eval-or-plain'),
+        ],
+
+        'tag': [
+            include('css'),
+            (r'\{(,\n|' + _dot + ')*?\}', using(ScalaLexer)),
+            (r'\[' + _dot + '*?\]', using(ScalaLexer)),
+            (r'\(', Text, 'html-attributes'),
+            (r'/[ \t]*\n', Punctuation, '#pop:2'),
+            (r'[<>]{1,2}(?=[ \t=])', Punctuation),
+            include('eval-or-plain'),
+        ],
+
+        'plain': [
+            (r'([^#\n]|#[^{\n]|(\\\\)*\\#\{)+', Text),
+            (r'(#\{)(' + _dot + '*?)(\})',
+             bygroups(String.Interpol, using(ScalaLexer), String.Interpol)),
+            (r'\n', Text, 'root'),
+        ],
+
+        'html-attributes': [
+            (r'\s+', Text),
+            (r'[a-z0-9_:-]+[ \t]*=', Name.Attribute, 'html-attribute-value'),
+            (r'[a-z0-9_:-]+', Name.Attribute),
+            (r'\)', Text, '#pop'),
+        ],
+
+        'html-attribute-value': [
+            (r'[ \t]+', Text),
+            (r'[a-z0-9_]+', Name.Variable, '#pop'),
+            (r'@[a-z0-9_]+', Name.Variable.Instance, '#pop'),
+            (r'\$[a-z0-9_]+', Name.Variable.Global, '#pop'),
+            (r"'(\\\\|\\'|[^'\n])*'", String, '#pop'),
+            (r'"(\\\\|\\"|[^"\n])*"', String, '#pop'),
+        ],
+
+        'buffered-comment-block': [
+            (r'.+', String),
+            (r'\n', Text, 'root'),
+        ],
+
+        'unbuffered-comment-block': [
+            (r'.+', Comment),
+            (r'\n', Text, 'root'),
+        ],
+
+        'filter-block': [
+            (r'([^#\n]|#[^{\n]|(\\\\)*\\#\{)+', Name.Decorator),
+            (r'(#\{)(' + _dot + '*?)(\})',
+             bygroups(String.Interpol, using(ScalaLexer), String.Interpol)),
+            (r'\n', Text, 'root'),
+        ],
     }
